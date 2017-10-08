@@ -17,7 +17,7 @@ def evalGrad(X, y, w):
 	return (1/np.sum(np.exp(np.reshape(temp, [m,k,1]) - np.reshape(temp, [m,1,k])), axis = 1) - y).T.dot(X)/m
 
 def predict(X, w):
-	return np.max(X.dot(w.T), axis = 1)
+	return np.argmax(X.dot(w.T), axis = 1)
 
 def getNewBatch(X, y, size):
 	m = X.shape[0]
@@ -36,6 +36,19 @@ def descent(X, y, w, alpha, stochastic = False, batch_size = 0):
 	grad_w = evalGrad(X, y, w)
 	return w - alpha*grad_w
 
+def evaluate(X, y, w, classes):
+	print "Class", "True Labels", "Predicted Labels", "Precision", "Recall" 
+	pred = classes[predict(X,w)]
+	y = classes[np.argmax(y)]
+	true_counts = dict(zip(np.unique(y, return_counts = True)))
+	pred_counts = dict(zip(np.unique(pred, return_counts = True)))
+	pos_counts = dict(zip(np.unique(y[pred==y], return_counts = True)))
+	for class_ex in classes:
+		true = true_counts.get(class_ex, 0)
+		predicted = pred_counts.get(class_ex, 0)
+		pos = pos_counts.get(class_ex, 0)
+		print class_ex, true, predicted, pos, float(pos)/predicted, float(pos)/true
+
 def softmax(X, y, pad_ones=True, one_hot_encode=True, stochastic=False, batch_size=0):
 	"""Return a softmax model and the corresponding test error. The training:testing divide used is 70:30"""
 	m = X.shape[0] #Number of data points
@@ -47,6 +60,8 @@ def softmax(X, y, pad_ones=True, one_hot_encode=True, stochastic=False, batch_si
 		classes = np.unique(y)
 		classes_expanded = np.matlib.repmat(classes, m, 1)
 		y = np.array(classes_expanded == np.column_stack((y,)), dtype = float)
+	else:
+		classes = np.arange(y.shape[1])
 	k = y.shape[1]
 	X_aug = np.hstack((X,y))
 	np.random.shuffle(X_aug)
@@ -68,4 +83,5 @@ def softmax(X, y, pad_ones=True, one_hot_encode=True, stochastic=False, batch_si
 		loss_old = loss_new
 		loss_new = evalLoss(X, y, w)
 		print loss_old, loss_new
+	evaluate(X, y, w, classes)
 	return w, evalLoss(X_test, y_test, w)
