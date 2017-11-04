@@ -10,5 +10,6 @@ def frog_data_load():
 	X = np.array(df.values[:,:22], dtype = float)
 	return X, y
 
+X, y = frog_data_load()
 if __name__ == '__main__':
-	softmax(*(frog_data_load()))
+	softmax(X,y)
