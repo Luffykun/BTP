@@ -36,6 +36,7 @@ def divide_dataset(X, y, ratio = 0.7):
 	y = np.array(y, dtype=object)
 	X_aug = np.hstack((X,y))
 	np.random.shuffle(X_aug)
+	print m, ratio
 	m_train = int(m*ratio)
 	X_test = np.array(X_aug[m_train:,:d], dtype=X_dtype)
 	y_test = np.array(X_aug[m_train:,d:], dtype=y_dtype)
@@ -113,7 +114,7 @@ def gradient_descent(X, y, w0, loss_fn, grad_fn, threshold = 1e-5, stochastic=Fa
 			w, alpha = descent(X, y, w, grad_fn)
 		loss_old = loss_new
 		loss_new = loss_fn(X, y, w)
-		print iteration_count, loss_old, loss_new
+		#print iteration_count, loss_old, loss_new
 	return w
 
 def evaluate(X, y, w, classes, predict_fn):
@@ -147,7 +148,7 @@ def predict(X, w, classes):
 	X = pad(X)
 	return classes[np.argmax(X.dot(w.T), axis = 1)]
 
-def softmax(X, y, pad_ones=True, one_hot_encode=True, stochastic=False, batch_size=0):
+def softmax(X, y, pad_ones=True, one_hot_encode=True,threshold=1e-5, stochastic=False, batch_size=0):
 	"""Return a softmax model and the corresponding test error. The training:testing divide used is 70:30"""
 	if one_hot_encode:
 		classes = np.unique(y)
@@ -157,7 +158,7 @@ def softmax(X, y, pad_ones=True, one_hot_encode=True, stochastic=False, batch_si
 	X_pad, y_enc = pad_encode(X, y, classes, pad_ones, one_hot_encode)
 	m, d, k = retdims(X_pad, y_enc)
 	w = np.random.rand(k,d)*20 - np.ones((k,d))*10
-	w = gradient_descent(X_pad, y_enc, w, evalLoss, evalGrad, stochastic=stochastic, batch_size=batch_size)
+	w = gradient_descent(X_pad, y_enc, w, evalLoss, evalGrad,threshold=threshold, stochastic=stochastic, batch_size=batch_size)
 	evaluate(X_test, y_test, w, classes, predict)
 	result = {}
 	result["model"] = w
@@ -166,13 +167,19 @@ def softmax(X, y, pad_ones=True, one_hot_encode=True, stochastic=False, batch_si
 	return result
 
 def softmax_bfgs(X, y, pad_ones=True, one_hot_encode=True):
-	X, y, X_test, y_test = divide_dataset(X, y, classes)
+	if one_hot_encode:
+		classes = np.unique(y)
+	else:
+		classes = np.arange(y.shape[1])
+	X, y, X_test, y_test = divide_dataset(X, y)
 	X_pad, y_enc = pad_encode(X, y, classes)
 	m, d, k = retdims(X_pad, y_enc)
 	w0 = (np.random.rand(k,d)*20 - np.ones((k,d))*10).flatten()
 	model =  minimize(lambda w: evalLoss(X_pad, y_enc, np.reshape(w, (k,d))), w0, method = 'BFGS', jac = lambda w: evalGrad(X_pad, y_enc, np.reshape(w, (k,d))).flatten()).x
 	model = np.reshape(model, (k,d))
-	return model, evalLoss(X_test, y_test, model)
+	evaluate(X_test, y_test, model, classes, predict)
+	print evalLoss(pad(X_test), encode(y_test, classes), model)
+	return model, evalLoss(pad(X_test), encode(y_test, classes), model)
 
 def sig(A):
 	return 1/(1 + np.exp(-A))
@@ -200,7 +207,7 @@ def logistic(X, y, stochastic=False, batch_size=0):
 	d = X.shape[1]
 	y = np.reshape(y, (-1,1))
 	w = np.random.rand(d,)*20 - np.ones((d,))*10
-	w = gradient_descent(X, y, w, logisticLoss, logisticGrad, stochastic=stochastic, batch_size=batch_size)
+	w = gradient_descent(X, y, w, logisticLoss, logisticGrad, threshold=1e-3, stochastic=stochastic, batch_size=batch_size)
 	return w
 
 def ovo_predict(X, w, classes):
